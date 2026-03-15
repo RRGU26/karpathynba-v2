@@ -7,3 +7,4 @@ bf64c8e	0.948677	0.6142	11.2572	keep	wd=5e-4
 3344978	0.937480	0.6172	11.0934	keep	skip + dropout=0.25
 2c1a580	0.924473	0.6295	11.0796	keep	skip + dropout=0.3
 3480c71	0.923884	0.6268	11.0137	keep	skip+do=0.3 lr=1e-3
+047abbc	0.935490	0.6195	11.0991	discard	player features (star_share, depth)
