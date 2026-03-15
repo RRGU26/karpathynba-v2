@@ -5,3 +5,4 @@ ce17e5e	0.956844	0.6040	11.2162	keep	batch=512
 bf64c8e	0.948677	0.6142	11.2572	keep	wd=5e-4
 4216d3f	0.945871	0.6103	11.1229	keep	skip connection heads see hidden+raw
 3344978	0.937480	0.6172	11.0934	keep	skip + dropout=0.25
+2c1a580	0.924473	0.6295	11.0796	keep	skip + dropout=0.3
