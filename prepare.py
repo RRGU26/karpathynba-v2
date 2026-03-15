@@ -725,7 +725,14 @@ def compute_features_fast(paired_games, raw_games):
             features[f"home_{stat_col}"] = h_vals
             features[f"away_{stat_col}"] = a_vals
 
-        print(f"    Added player features: star_share_10g, depth_10g")
+        # Fill NaN with league averages (don't drop games)
+        for col in ["home_star_share_10g", "away_star_share_10g"]:
+            if col in features.columns:
+                features[col] = features[col].fillna(0.45)
+        for col in ["home_depth_10g", "away_depth_10g"]:
+            if col in features.columns:
+                features[col] = features[col].fillna(8.0)
+        print(f"    Added player features: star_share_10g, depth_10g (NaN filled with defaults)")
     else:
         print("    No player data found, skipping player features")
 
