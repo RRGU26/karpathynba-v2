@@ -30,7 +30,7 @@ LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 5e-4
 ADAM_BETAS = (0.9, 0.999)
 WARMUP_RATIO = 0.05
-WARMDOWN_RATIO = 0.1
+WARMDOWN_RATIO = 0.05
 FINAL_LR_FRAC = 0.01
 
 # ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ def get_lr_multiplier(progress):
 # ---------------------------------------------------------------------------
 
 t_start = time.time()
-mx.random.seed(7777)
+mx.random.seed(0)
 
 # Load data
 n_features = get_n_features()

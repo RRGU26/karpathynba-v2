@@ -9,3 +9,4 @@ bf64c8e	0.948677	0.6142	11.2572	keep	wd=5e-4
 3480c71	0.923884	0.6268	11.0137	keep	skip+do=0.3 lr=1e-3
 047abbc	0.935490	0.6195	11.0991	discard	player features (star_share, depth)
 272700c	0.929498	0.6235	11.0599	keep	player features with NaN imputation (146 feats)
+daa2d41    0.937000        0.6190  11.0800 discard lr=1.2e-3 3-seed mean (no improvement)
