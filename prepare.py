@@ -662,6 +662,73 @@ def compute_features_fast(paired_games, raw_games):
     features["away_streak"] = [lookup_streak.get(k, 0) for k in away_keys]
     features["streak_diff"] = features["home_streak"] - features["away_streak"]
 
+    # --- Player concentration features ---
+    print("  Computing player features...")
+    if os.path.exists(PLAYER_RAW_PATH):
+        with open(PLAYER_RAW_PATH, "rb") as f:
+            player_cache = pickle.load(f)
+        player_games = player_cache["games"]
+        player_games["GAME_DATE"] = pd.to_datetime(player_games["GAME_DATE"])
+        player_games = player_games.sort_values(["TEAM_ID", "GAME_DATE"]).reset_index(drop=True)
+
+        # Convert MIN to float (format is "MM:SS")
+        def parse_min(x):
+            if pd.isna(x) or x == "" or x is None:
+                return 0.0
+            try:
+                parts = str(x).split(":")
+                return float(parts[0]) + float(parts[1]) / 60 if len(parts) == 2 else float(parts[0])
+            except (ValueError, IndexError):
+                return 0.0
+
+        player_games["MIN_FLOAT"] = player_games["MIN"].apply(parse_min)
+
+        # For each team-game, compute star concentration (top-2 scorer share)
+        # and roster depth (players with >15 min)
+        def team_game_stats(group):
+            pts = group["PTS"].astype(float)
+            mins = group["MIN_FLOAT"]
+            total_pts = pts.sum()
+            if total_pts == 0:
+                return pd.Series({"star_share": 0.5, "depth": 8})
+            top2 = pts.nlargest(2).sum()
+            star_share = top2 / total_pts
+            depth = (mins >= 15).sum()
+            return pd.Series({"star_share": star_share, "depth": float(depth)})
+
+        pg_stats = player_games.groupby(["TEAM_ID", "GAME_DATE"]).apply(
+            team_game_stats, include_groups=False
+        )
+        pg_stats = pg_stats.reset_index()
+
+        # Compute rolling averages (shifted to avoid leakage)
+        pg_stats = pg_stats.sort_values(["TEAM_ID", "GAME_DATE"])
+        for stat_col in ["star_share", "depth"]:
+            for w in [10]:  # single window for simplicity
+                roll_col = f"{stat_col}_{w}g"
+                pg_stats[roll_col] = (
+                    pg_stats.groupby("TEAM_ID")[stat_col]
+                    .shift(1)
+                    .groupby(pg_stats["TEAM_ID"])
+                    .rolling(w, min_periods=5)
+                    .mean()
+                    .droplevel(0)
+                )
+
+        # Map to features
+        pg_lookup = pg_stats.set_index(["TEAM_ID", "GAME_DATE"])
+        pg_lookup = pg_lookup[~pg_lookup.index.duplicated(keep="first")]
+
+        for stat_col in ["star_share_10g", "depth_10g"]:
+            h_vals = [pg_lookup[stat_col].get(k, np.nan) if k in pg_lookup.index else np.nan for k in home_keys]
+            a_vals = [pg_lookup[stat_col].get(k, np.nan) if k in pg_lookup.index else np.nan for k in away_keys]
+            features[f"home_{stat_col}"] = h_vals
+            features[f"away_{stat_col}"] = a_vals
+
+        print(f"    Added player features: star_share_10g, depth_10g")
+    else:
+        print("    No player data found, skipping player features")
+
     # --- Differential features ---
     for w in ROLLING_WINDOWS:
         suffix = f"_{w}g"
@@ -672,6 +739,13 @@ def compute_features_fast(paired_games, raw_games):
             a_col = f"away_{stat}{suffix}"
             if h_col in features.columns and a_col in features.columns:
                 features[f"diff_{stat}{suffix}"] = features[h_col] - features[a_col]
+
+    # Player feature diffs
+    for stat_col in ["star_share_10g", "depth_10g"]:
+        h_col = f"home_{stat_col}"
+        a_col = f"away_{stat_col}"
+        if h_col in features.columns and a_col in features.columns:
+            features[f"diff_{stat_col}"] = features[h_col] - features[a_col]
 
     # --- Targets ---
     features["target_point_diff"] = (paired_valid["HOME_PTS"] - paired_valid["AWAY_PTS"]).astype(float)
