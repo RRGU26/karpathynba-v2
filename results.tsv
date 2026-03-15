@@ -1,0 +1,2 @@
+commit	val_score	win_acc	mae	status	description
+e83c52b	0.967932	0.5983	11.3238	keep	baseline: 2L 640h (v1 config on v2 data)
