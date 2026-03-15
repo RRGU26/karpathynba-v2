@@ -1,0 +1,45 @@
+seed=    7  val_score=0.972506  win=0.5940  mae=11.3311
+seed=   13  val_score=0.973611  win=0.5910  mae=11.2931
+seed=   42  val_score=0.970430  win=0.5950  mae=11.3076
+seed=   99  val_score=0.970137  win=0.5965  mae=11.3318
+seed=  137  val_score=0.971972  win=0.5950  mae=11.3385
+seed=  256  val_score=0.969528  win=0.5956  mae=11.3016
+seed=  314  val_score=0.966702  win=0.5980  mae=11.2932
+seed=  420  val_score=0.968723  win=0.5956  mae=11.2855
+seed=  512  val_score=0.971147  win=0.5962  mae=11.3460
+seed=  666  val_score=0.965345  win=0.5986  mae=11.2781
+seed=  777  val_score=0.962655  win=0.6010  mae=11.2723
+seed= 1024  val_score=0.969486  win=0.5956  mae=11.3008
+seed= 1337  val_score=0.946604  win=0.6136  mae=11.2037
+seed= 2024  val_score=0.973739  win=0.5922  mae=11.3197
+seed= 2025  val_score=0.962415  win=0.6007  mae=11.2615
+seed= 3141  val_score=0.966522  win=0.5974  mae=11.2776
+seed= 4096  val_score=0.972095  win=0.5935  mae=11.3109
+seed= 5555  val_score=0.969933  win=0.5959  mae=11.3157
+seed= 7777  val_score=0.958687  win=0.6055  mae=11.2831
+seed= 9999  val_score=0.961666  win=0.6013  mae=11.2586
+
+============================================================
+RANKED:
+  seed= 1337  val_score=0.946604  win=0.6136  mae=11.2037 <<<
+  seed= 7777  val_score=0.958687  win=0.6055  mae=11.2831
+  seed= 9999  val_score=0.961666  win=0.6013  mae=11.2586
+  seed= 2025  val_score=0.962415  win=0.6007  mae=11.2615
+  seed=  777  val_score=0.962655  win=0.6010  mae=11.2723
+  seed=  666  val_score=0.965345  win=0.5986  mae=11.2781
+  seed= 3141  val_score=0.966522  win=0.5974  mae=11.2776
+  seed=  314  val_score=0.966702  win=0.5980  mae=11.2932
+  seed=  420  val_score=0.968723  win=0.5956  mae=11.2855
+  seed= 1024  val_score=0.969486  win=0.5956  mae=11.3008
+  seed=  256  val_score=0.969528  win=0.5956  mae=11.3016
+  seed= 5555  val_score=0.969933  win=0.5959  mae=11.3157
+  seed=   99  val_score=0.970137  win=0.5965  mae=11.3318
+  seed=   42  val_score=0.970430  win=0.5950  mae=11.3076
+  seed=  512  val_score=0.971147  win=0.5962  mae=11.3460
+  seed=  137  val_score=0.971972  win=0.5950  mae=11.3385
+  seed= 4096  val_score=0.972095  win=0.5935  mae=11.3109
+  seed=    7  val_score=0.972506  win=0.5940  mae=11.3311
+  seed=   13  val_score=0.973611  win=0.5910  mae=11.2931
+  seed= 2024  val_score=0.973739  win=0.5922  mae=11.3197
+
+Best: seed=1337, val_score=0.946604
