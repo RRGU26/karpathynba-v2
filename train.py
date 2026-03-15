@@ -22,7 +22,7 @@ from prepare import TIME_BUDGET, DataLoader, evaluate, get_n_features
 # Model architecture
 HIDDEN_DIM = 640
 NUM_LAYERS = 2
-DROPOUT_RATE = 0.2
+DROPOUT_RATE = 0.25
 
 # Training
 BATCH_SIZE = 512
