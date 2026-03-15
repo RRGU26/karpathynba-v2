@@ -1,0 +1,12 @@
+[project]
+name = "autoresearch-nba-v2"
+version = "0.2.0"
+description = "NBA spread prediction v2 — 20 seasons, streaks, player features (MLX)"
+readme = "program.md"
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "mlx>=0.30.0",
+    "numpy>=2.2.6",
+    "pandas>=2.2.0",
+    "nba_api>=1.10.2",
+]
