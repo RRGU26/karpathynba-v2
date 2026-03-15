@@ -57,18 +57,20 @@ class NBAPredictor(nn.Module):
         self.layers = layers
         self.dropout = nn.Dropout(dropout_rate)
 
-        # Separate heads for point diff regression and win classification
-        self.diff_head = nn.Linear(hidden_dim, 1, bias=True)
-        self.win_head = nn.Linear(hidden_dim, 1, bias=True)
+        # Heads take hidden + raw features (skip connection)
+        self.diff_head = nn.Linear(hidden_dim + n_features, 1, bias=True)
+        self.win_head = nn.Linear(hidden_dim + n_features, 1, bias=True)
 
     def __call__(self, x):
+        x_raw = x
         for layer in self.layers:
             x = layer(x)
             x = nn.gelu(x)
             x = self.dropout(x)
 
-        pred_diff = self.diff_head(x)
-        win_logit = self.win_head(x)
+        x_cat = mx.concatenate([x, x_raw], axis=-1)
+        pred_diff = self.diff_head(x_cat)
+        win_logit = self.win_head(x_cat)
 
         return pred_diff, win_logit
 
