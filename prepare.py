@@ -662,79 +662,70 @@ def compute_features_fast(paired_games, raw_games):
     features["away_streak"] = [lookup_streak.get(k, 0) for k in away_keys]
     features["streak_diff"] = features["home_streak"] - features["away_streak"]
 
-    # --- Player concentration features ---
-    print("  Computing player features...")
-    if os.path.exists(PLAYER_RAW_PATH):
-        with open(PLAYER_RAW_PATH, "rb") as f:
-            player_cache = pickle.load(f)
-        player_games = player_cache["games"]
-        player_games["GAME_DATE"] = pd.to_datetime(player_games["GAME_DATE"])
-        player_games = player_games.sort_values(["TEAM_ID", "GAME_DATE"]).reset_index(drop=True)
+    # --- Vegas spread feature ---
+    print("  Loading Vegas spread data...")
+    odds_path = os.path.join(CACHE_DIR, "odds_data.json")
+    if os.path.exists(odds_path):
+        import json as _json
+        with open(odds_path) as f:
+            odds_raw = _json.load(f)
 
-        # Convert MIN to float (format is "MM:SS")
-        def parse_min(x):
-            if pd.isna(x) or x == "" or x is None:
-                return 0.0
+        # Map odds team nicknames to nba_api TEAM_IDs
+        _nickname_to_id = {}
+        for t in nba_teams.get_teams():
+            _nickname_to_id[t["nickname"]] = t["id"]
+        # Handle naming variants in odds data
+        _odds_name_map = {
+            "Golden State": "Warriors", "NewJersey": "Nets",
+            "Seventysixers": "76ers", "Trailblazers": "Trail Blazers",
+        }
+
+        # Build lookup: (date_str, home_team_id) -> closing_spread
+        odds_lookup = {}
+        n_mapped = 0
+        for g in odds_raw:
+            ht = str(g.get("home_team", ""))
+            if ht == "0" or not ht:
+                continue
+            ht = _odds_name_map.get(ht, ht)
+            tid = _nickname_to_id.get(ht)
+            if tid is None:
+                continue
             try:
-                parts = str(x).split(":")
-                return float(parts[0]) + float(parts[1]) / 60 if len(parts) == 2 else float(parts[0])
-            except (ValueError, IndexError):
-                return 0.0
+                spread = float(g["home_close_spread"])
+            except (ValueError, TypeError):
+                continue
+            # Convert date: 20111225.0 -> "2011-12-25"
+            dstr = str(int(g["date"]))
+            date_key = f"{dstr[:4]}-{dstr[4:6]}-{dstr[6:8]}"
+            odds_lookup[(date_key, tid)] = spread
+            n_mapped += 1
 
-        player_games["MIN_FLOAT"] = player_games["MIN"].apply(parse_min)
+        # Match to our games
+        spreads = []
+        has_spread = []
+        for _, row in paired_valid.iterrows():
+            date_key = str(row["GAME_DATE"].date())
+            tid = row["HOME_TEAM_ID"]
+            if (date_key, tid) in odds_lookup:
+                spreads.append(odds_lookup[(date_key, tid)])
+                has_spread.append(1.0)
+            else:
+                # Fallback: use elo_diff as proxy (elo_diff ~28 per point spread)
+                elo_idx = features.index.get_loc(row.name) if row.name in features.index else None
+                if elo_idx is not None:
+                    elo_d = features.iloc[elo_idx]["elo_diff"] if "elo_diff" in features.columns else 0
+                    spreads.append(-elo_d / 28.0)  # negative because spread convention
+                else:
+                    spreads.append(0.0)
+                has_spread.append(0.0)
 
-        # For each team-game, compute star concentration (top-2 scorer share)
-        # and roster depth (players with >15 min)
-        def team_game_stats(group):
-            pts = group["PTS"].astype(float)
-            mins = group["MIN_FLOAT"]
-            total_pts = pts.sum()
-            if total_pts == 0:
-                return pd.Series({"star_share": 0.5, "depth": 8})
-            top2 = pts.nlargest(2).sum()
-            star_share = top2 / total_pts
-            depth = (mins >= 15).sum()
-            return pd.Series({"star_share": star_share, "depth": float(depth)})
-
-        pg_stats = player_games.groupby(["TEAM_ID", "GAME_DATE"]).apply(
-            team_game_stats, include_groups=False
-        )
-        pg_stats = pg_stats.reset_index()
-
-        # Compute rolling averages (shifted to avoid leakage)
-        pg_stats = pg_stats.sort_values(["TEAM_ID", "GAME_DATE"])
-        for stat_col in ["star_share", "depth"]:
-            for w in [10]:  # single window for simplicity
-                roll_col = f"{stat_col}_{w}g"
-                pg_stats[roll_col] = (
-                    pg_stats.groupby("TEAM_ID")[stat_col]
-                    .shift(1)
-                    .groupby(pg_stats["TEAM_ID"])
-                    .rolling(w, min_periods=5)
-                    .mean()
-                    .droplevel(0)
-                )
-
-        # Map to features
-        pg_lookup = pg_stats.set_index(["TEAM_ID", "GAME_DATE"])
-        pg_lookup = pg_lookup[~pg_lookup.index.duplicated(keep="first")]
-
-        for stat_col in ["star_share_10g", "depth_10g"]:
-            h_vals = [pg_lookup[stat_col].get(k, np.nan) if k in pg_lookup.index else np.nan for k in home_keys]
-            a_vals = [pg_lookup[stat_col].get(k, np.nan) if k in pg_lookup.index else np.nan for k in away_keys]
-            features[f"home_{stat_col}"] = h_vals
-            features[f"away_{stat_col}"] = a_vals
-
-        # Fill NaN with league averages (don't drop games)
-        for col in ["home_star_share_10g", "away_star_share_10g"]:
-            if col in features.columns:
-                features[col] = features[col].fillna(0.45)
-        for col in ["home_depth_10g", "away_depth_10g"]:
-            if col in features.columns:
-                features[col] = features[col].fillna(8.0)
-        print(f"    Added player features: star_share_10g, depth_10g (NaN filled with defaults)")
+        features["vegas_spread"] = spreads
+        features["has_vegas_spread"] = has_spread
+        matched = sum(has_spread)
+        print(f"    Vegas spread: {int(matched)}/{len(has_spread)} games matched ({100*matched/len(has_spread):.1f}%)")
     else:
-        print("    No player data found, skipping player features")
+        print("    No odds data found, skipping Vegas spread")
 
     # --- Differential features ---
     for w in ROLLING_WINDOWS:
@@ -747,12 +738,26 @@ def compute_features_fast(paired_games, raw_games):
             if h_col in features.columns and a_col in features.columns:
                 features[f"diff_{stat}{suffix}"] = features[h_col] - features[a_col]
 
-    # Player feature diffs
-    for stat_col in ["star_share_10g", "depth_10g"]:
-        h_col = f"home_{stat_col}"
-        a_col = f"away_{stat_col}"
-        if h_col in features.columns and a_col in features.columns:
-            features[f"diff_{stat_col}"] = features[h_col] - features[a_col]
+    # --- Cull weak features (combined target correlation < 0.10) ---
+    cull_features = [
+        "home_b2b", "home_rest_days", "away_rest_days", "rest_advantage",
+        "day_of_week", "month", "season_progress",
+    ]
+    for w in ROLLING_WINDOWS:
+        suffix = f"_{w}g"
+        cull_features.extend([
+            # corr < 0.05: pts_std, away_ft_rate, away_poss, home_oreb, diff_pts_std
+            f"home_pts_std{suffix}", f"away_pts_std{suffix}", f"diff_pts_std{suffix}",
+            f"away_ft_rate{suffix}", f"away_poss{suffix}", f"home_oreb{suffix}",
+            # corr < 0.10: fg3_rate, stl, home_ft_rate, away_oreb, home_poss, diff_oreb
+            f"home_fg3_rate{suffix}", f"home_stl{suffix}", f"away_stl{suffix}",
+            f"home_ft_rate{suffix}", f"away_oreb{suffix}", f"diff_oreb{suffix}",
+            f"home_poss{suffix}",
+        ])
+    before_cull = len([c for c in features.columns if not c.startswith("target_")])
+    features = features.drop(columns=[c for c in cull_features if c in features.columns])
+    after_cull = len([c for c in features.columns if not c.startswith("target_")])
+    print(f"  Culled {before_cull - after_cull} weak features ({after_cull} remaining)")
 
     # --- Targets ---
     features["target_point_diff"] = (paired_valid["HOME_PTS"] - paired_valid["AWAY_PTS"]).astype(float)
