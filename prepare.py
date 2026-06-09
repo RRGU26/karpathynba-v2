@@ -48,8 +48,20 @@ ELO_INIT = 1500
 ELO_SEASON_REGRESS = 0.75  # regress 25% toward mean between seasons
 
 # Season range
-CURRENT_SEASON_YEAR = 2025  # 2024-25 season
-START_SEASON_YEAR = 2006    # 2005-06 season (20 seasons)
+
+
+def _current_season_end_year():
+    """Season end-year for today, e.g. returns 2026 for the 2025-26 season.
+
+    Oct-Dec games belong to the season ending the following year.
+    """
+    from datetime import datetime
+    now = datetime.now()
+    return now.year + 1 if now.month >= 10 else now.year
+
+
+CURRENT_SEASON_YEAR = _current_season_end_year()
+START_SEASON_YEAR = 2006    # 2005-06 season
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +70,7 @@ START_SEASON_YEAR = 2006    # 2005-06 season (20 seasons)
 
 
 def _season_string(year):
-    """Convert year to NBA season string, e.g. 2024 -> '2024-25'."""
+    """Convert season end-year to NBA season string, e.g. 2025 -> '2024-25'."""
     return f"{year-1}-{str(year)[-2:]}"
 
 
